@@ -83,10 +83,5 @@ pub fn sys_munmap(_start: usize, _len: usize) -> isize {
 
 // YOUR JOB: 引入虚地址后重写 sys_task_info
 pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
-    if let Some(phys_addr) = vaddr2paddr(VirtAddr(ti as usize)) {
-        let ti = ti as ti = get_task_info();
-        0
-    } else {
-        -1
-    }
+    -1
 }
