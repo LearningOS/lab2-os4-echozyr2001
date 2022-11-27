@@ -126,10 +126,6 @@ impl PhysAddr {
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
-
-    pub fn combine(ppn: PhysPageNum, offset: usize) -> PhysAddr {
-        PhysAddr(ppn.0 << 12 | offset)
-    }
 }
 impl From<PhysAddr> for PhysPageNum {
     fn from(v: PhysAddr) -> Self {

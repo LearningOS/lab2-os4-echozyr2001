@@ -96,7 +96,7 @@ impl PageTable {
         }
         result
     }
-    fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
+    pub fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&PageTableEntry> = None;
@@ -154,4 +154,11 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
         start = end_va.into();
     }
     v
+}
+
+pub fn vaddr2paddr(token: usize, ptr: *const u8) -> usize {
+    let page_table = PageTable::from_token(token);
+    let vaddr = VirtAddr::from(ptr as usize);
+    let ppn = page_table.find_pte(vaddr.floor()).unwrap().ppn();
+    super::PhysAddr::from(ppn).0 + vaddr.page_offset()
 }

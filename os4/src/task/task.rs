@@ -4,12 +4,6 @@ use crate::config::{kernel_stack_position, MAX_SYSCALL_NUM, TRAP_CONTEXT};
 use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::trap::{trap_handler, TrapContext};
 
-#[derive(Clone, Copy)]
-pub struct TaskInfoInner {
-    pub syscall_times: [u32; MAX_SYSCALL_NUM], // MAX_SYSCALL_NUM数据个数
-    pub start_time: usize,
-}
-
 /// task control block structure
 pub struct TaskControlBlock {
     pub task_status: TaskStatus,
@@ -17,7 +11,8 @@ pub struct TaskControlBlock {
     pub memory_set: MemorySet,
     pub trap_cx_ppn: PhysPageNum,
     pub base_size: usize,
-    pub task_info_inner: TaskInfoInner,
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
+    pub start_time: usize,
 }
 
 impl TaskControlBlock {
@@ -48,6 +43,8 @@ impl TaskControlBlock {
             memory_set,
             trap_cx_ppn,
             base_size: user_sp,
+            syscall_times: [0; MAX_SYSCALL_NUM],
+            start_time: 0,
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.get_trap_cx();

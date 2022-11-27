@@ -14,15 +14,15 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use crate::config::MAX_SYSCALL_NUM;
 use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
-use crate::syscall::process::TaskInfo;
 use crate::timer::get_time_us;
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
 use lazy_static::*;
 pub use switch::__switch;
-pub use task::{TaskControlBlock, TaskInfoInner, TaskStatus};
+pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
 
@@ -136,6 +136,11 @@ impl TaskManager {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
+
+            if inner.tasks[next].start_time == 0 {
+                inner.tasks[next].start_time = get_time_us();
+            }
+
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
@@ -150,25 +155,34 @@ impl TaskManager {
         }
     }
 
-    fn set_syscall_times(&self, sys_call_id: usize) {
-        let mut inner = self.inner.exclusive_access();
-        let current_id = inner.current_task;
-        inner.tasks[current_id].task_info_inner.syscall_times[sys_call_id] += 1;
-        // 次数加一
+    fn get_current_task(&self) -> TaskControlBlock {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current]
     }
 
-    fn get_current_task_info(&self) -> TaskInfo {
+    fn get_current_TaskControlBlock_start_time(&self) -> usize {
         let inner = self.inner.exclusive_access();
-        let current_id = inner.current_task;
-        let TaskInfoInner {
-            syscall_times,
-            start_time,
-        } = inner.tasks[current_id].task_info_inner;
-        TaskInfo {
-            status: TaskStatus::Running,
-            syscall_times,
-            time: get_time_us() / 1000 - start_time,
-        }
+        let current = inner.current_task;
+        inner.tasks[current].start_time
+    }
+
+    fn get_current_status(&self) -> TaskStatus {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].task_status
+    }
+
+    fn add_syscall_times(&self, syscall_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times[syscall_id] += 1;
+    }
+
+    fn get_syscall_times(&self) -> [u32; MAX_SYSCALL_NUM] {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times
     }
 }
 
@@ -215,10 +229,22 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
 }
 
-pub fn set_syscall_times(syscall_id: usize) {
-    TASK_MANAGER.set_syscall_times(syscall_id);
+pub fn get_current_start_time() -> usize {
+    TASK_MANAGER.get_current_TaskControlBlock_start_time()
 }
 
-pub fn get_task_info() -> TaskInfo {
-    TASK_MANAGER.get_current_task_info()
+pub fn get_current_status() -> TaskStatus {
+    TASK_MANAGER.get_current_status()
+}
+
+pub fn add_syscall_times(syscall_id: usize) {
+    TASK_MANAGER.add_syscall_times(syscall_id);
+}
+
+pub fn get_syscall_times() -> [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.get_syscall_times()
+}
+
+pub fn get_current_task() -> TaskControlBlock {
+    TASK_MANAGER.get_current_task()
 }
